@@ -1,70 +1,153 @@
-# Getting Started with Create React App
+# My Profile Portfolio - Serverless Architecture
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This repository contains the frontend of my portfolio website, hosted on **AWS S3** and served through **CloudFront**, along with a **serverless backend** for handling contact form submissions using **AWS Lambda** and **DynamoDB**.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Table of Contents
 
-### `npm start`
+* [Frontend Hosting](#frontend-hosting)
+* [Backend Architecture](#backend-architecture)
+* [Contact Form API](#contact-form-api)
+* [DynamoDB Table](#dynamodb-table)
+* [Deployment Steps](#deployment-steps)
+* [Technologies Used](#technologies-used)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Frontend Hosting
 
-### `npm test`
+1. The frontend React (or HTML/JS/CSS) build files are uploaded to an **S3 bucket**.
+2. S3 bucket is configured for **static website hosting**.
+3. **CloudFront distribution** is created pointing to the S3 bucket for global CDN delivery.
+4. All routes except `/submit` are served by CloudFront from the S3 bucket.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+**CloudFront Behavior for `/submit`:**
 
-### `npm run build`
+* Path pattern: `/submit*`
+* Origin: Lambda Function (via API Gateway)
+* Method: POST
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Backend Architecture
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+The backend is fully **serverless**:
 
-### `npm run eject`
+* **API Gateway** exposes an endpoint `/submit`.
+* **Lambda Function** written in **Node.js** handles POST requests.
+* The Lambda function stores contact form submissions in **DynamoDB**.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+**Lambda Function (Node.js example)**:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```javascript
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+const dynamoClient = new DynamoDBClient({ region: "ap-south-1" });
+const TABLE_NAME = process.env.TABLE_NAME;
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+export const handler = async (event) => {
+    try {
+        const { name, email, message } = JSON.parse(event.body);
 
-## Learn More
+        const params = {
+            TableName: TABLE_NAME,
+            Item: {
+                id: { S: new Date().toISOString() },
+                name: { S: name },
+                email: { S: email },
+                message: { S: message }
+            },
+        };
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+        await dynamoClient.send(new PutItemCommand(params));
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ message: "Form submitted successfully" }),
+        };
+    } catch (error) {
+        console.error(error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: "Failed to submit form" }),
+        };
+    }
+};
+```
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Contact Form API
 
-### Analyzing the Bundle Size
+* **Endpoint:** `https://<API-GATEWAY-ID>.execute-api.<region>.amazonaws.com/submit`
+* **Method:** POST
+* **Body JSON Structure:**
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```json
+{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "message": "Hello, this is a test message."
+}
+```
 
-### Making a Progressive Web App
+* The Lambda function validates the input and writes it to DynamoDB.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+---
 
-### Advanced Configuration
+## DynamoDB Table
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+* **Table Name:** `ContactFormSubmissions` (example)
+* **Primary Key:** `id` (string)
+* **Attributes:** `name`, `email`, `message`, `createdAt` (optional timestamp)
 
-### Deployment
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Deployment Steps
 
-### `npm run build` fails to minify
+1. **Frontend Deployment**
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+   * Run `npm run build` (React) or use your static files.
+   * Upload files to the **S3 bucket**.
+   * Configure bucket policy for public read access.
+   * Create **CloudFront distribution** and point to the S3 bucket.
+   * Add a behavior `/submit` for Lambda/API Gateway.
+
+2. **Backend Deployment**
+
+   * Create a **DynamoDB table** for submissions.
+   * Write a Node.js Lambda function to handle the form POST.
+   * Create an **API Gateway** endpoint `/submit` pointing to the Lambda function.
+   * Update Lambda environment variable `TABLE_NAME` with your DynamoDB table name.
+
+3. **Connect Frontend Form**
+
+   * In your frontend, configure the contact form POST request to `/submit` via CloudFront or API Gateway endpoint.
+
+---
+
+## Technologies Used
+
+* **Frontend:** HTML, CSS, JS, React (optional)
+* **AWS Services:**
+
+  * S3 (Static hosting)
+  * CloudFront (CDN)
+  * Lambda (Serverless function)
+  * API Gateway (REST API)
+  * DynamoDB (NoSQL Database)
+* **Node.js** for Lambda backend
+* **AWS SDK v3** for DynamoDB operations
+
+---
+
+## Notes
+
+* Ensure CORS is configured for API Gateway to allow requests from your CloudFront domain.
+* All serverless resources can be managed with **AWS SAM**, **Serverless Framework**, or manually via the AWS Console.
+
+---
+
+**Author:** Nipun Yadav
+**GitHub:** [https://github.com/Nyadav123/My-Profile-Portfolio](https://github.com/Nyadav123/My-Profile-Portfolio)
