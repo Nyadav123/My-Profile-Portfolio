@@ -1,0 +1,122 @@
+.pl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  font-family: "Poppins", sans-serif;
+  background: linear-gradient(135deg, #e0f7fa 0%, #fce4ec 100%);
+  padding-bottom: 4%;
+}
+
+.pl-texts {
+  max-width: 900px;
+  text-align: center;
+}
+
+.pl-title span {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  font-size: 35px;
+  font-weight: 800;
+  background: linear-gradient(90deg, #ff758c, #ff7eb3, #6a82fb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: floatTitle 6s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes floatTitle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.pl-desc {
+  font-size: 18px;
+  color: #555;
+  margin-top: 10px;
+  line-height: 1.6;
+}
+
+.showcase {
+  display: flex;
+  justify-content: center;
+  width: 90%;
+  max-width: 1400px;
+  overflow: hidden;
+  position: relative;
+  perspective: 1200px;
+}
+
+.carousel-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 20px;
+  transition: transform 0.8s ease;
+}
+
+.slide {
+  position: relative;
+  transition: all 0.8s ease;
+  display: flex;
+  margin-top: 20px;
+  flex-direction: column;
+  align-items: center;
+  height: 450px;
+}
+
+.slide.center {
+  flex: 0 0 50%;
+  transform: scale(1);
+  z-index: 3;
+}
+
+.slide.side {
+  flex: 0 0 25%;
+  opacity: 0.75;
+  transform: scale(0.9);
+}
+
+.slide.left {
+  transform: perspective(800px) rotateY(10deg) scale(0.9);
+}
+.slide.right {
+  transform: perspective(800px) rotateY(-10deg) scale(0.9);
+}
+
+.slide.center:hover {
+  transform: scale(0.9) translateY(-5px);
+  box-shadow: 0 45px 90px rgba(0, 0, 0, 0.38);
+}
+
+@media screen and (max-width: 1024px) {
+  .slide.center { flex: 0 0 60%; }
+  .slide.side { flex: 0 0 20%; }
+}
+
+@media screen and (max-width: 768px) {
+  .carousel-row {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .slide.center,
+  .slide.side,
+  .slide.left,
+  .slide.right {
+    flex: 0 0 auto;
+    width: 90%;
+    max-width: 400px;
+    height: 300px;
+    transform: scale(1) rotateY(0);
+    opacity: 1;
+    margin: 10px 0;
+  }
+
+  .slide.center:hover {
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
